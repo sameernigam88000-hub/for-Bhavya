@@ -741,6 +741,7 @@ function handleJump() {
   if (gameState === 'playing') jump();
 }
 
+// keyboard
 document.addEventListener('keydown', e => {
   if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
     e.preventDefault();
@@ -748,15 +749,20 @@ document.addEventListener('keydown', e => {
   }
 });
 
+// touch
 document.addEventListener('touchstart', e => {
   e.preventDefault();
   handleJump();
 }, { passive: false });
 
+// pointer (MOST IMPORTANT)
 document.addEventListener('pointerdown', e => {
   e.preventDefault();
   handleJump();
 });
+
+// fallback (extra safety)
+document.body.onclick = () => handleJump();
 
 // ═══════════════════════════════════════════════════════════
 //  BUTTON HANDLERS
