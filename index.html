@@ -750,15 +750,33 @@ document.addEventListener('keydown', e => {
 });
 
 // touch
+function triggerJump() {
+  if (gameState === 'playing') jump();
+}
+
+// keyboard (keep same)
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+    e.preventDefault();
+    triggerJump();
+  }
+});
+
+// touch (mobile)
 document.addEventListener('touchstart', e => {
   e.preventDefault();
-  handleJump();
+  triggerJump();
 }, { passive: false });
 
-// pointer (MOST IMPORTANT)
+// pointer (IMPORTANT for WebView)
 document.addEventListener('pointerdown', e => {
   e.preventDefault();
-  handleJump();
+  triggerJump();
+});
+
+// click fallback
+document.addEventListener('click', e => {
+  triggerJump();
 });
 
 // fallback (extra safety)
