@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>hold on</title>
+<style>
+  /* ── CSS Variables ──────────────────────────────────────── */
+  :root {
+    --bg:       #0a0a0f;
+    --surface:  #12121a;
+    --border:   #1e1e2e;
+    --accent:   #c8a2ff;
+    --accent2:  #ff8fa3;
+    --accent3:  #80ffdb;
+    --text:     #e8e8f0;
+    --muted:    #666680;
+    --player:   #c8a2ff;
+    --obstacle: #ff6b8a;
+    --safe:     #80ffdb;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Georgia', serif;
+    overflow: hidden;
+    touch-action: none;
+    user-select: none;
+  }
+
+  /* ── Screens ────────────────────────────────────────────── */
+  .screen {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 32px;
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+  .screen.hidden {
+    opacity: 0; pointer-events: none; transform: scale(0.97);
+  }
+
+  /* ── Start Screen ───────────────────────────────────────── */
+  #startScreen {
+    background: var(--bg);
+    gap: 24px;
+    text-align: center;
+  }
+  #startScreen .kicker {
+    font-size: 11px;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  #startScreen h1 {
+    font-size: clamp(36px, 10vw, 72px);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    color: var(--text);
+  }
+  #startScreen h1 span { color: var(--accent); }
+  #startScreen .sub {
+    font-size: clamp(13px, 3vw, 16px);
+    color: var(--muted);
+    max-width: 300px;
+    line-height: 1.6;
+    font-style: italic;
+  }
+  .btn {
+    margin-top: 8px;
+    padding: 14px 40px;
+    border: 1px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    font-family: 'Georgia', serif;
+    font-size: 15px;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: background 0.2s, color 0.2s, transform 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+  .btn::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: var(--accent);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.25s ease;
+    z-index: -1;
+  }
+  .btn:hover::before { transform: scaleX(1); }
+  .btn:hover { color: var(--bg); }
+  .btn:active { transform: scale(0.97); }
+
+  /* ── Canvas Area ────────────────────────────────────────── */
+  #gameScreen {
+    padding: 0;
+    background: var(--bg);
+  }
+  #gameCanvas {
+    display: block;
+    image-rendering: pixelated;
+  }
+
+  /* ── HUD ────────────────────────────────────────────────── */
+  #hud {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    padding: 16px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    pointer-events: none;
+    z-index: 10;
+  }
+  #hud .hud-label {
+    font-size: 11px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  #hud .hud-val {
+    font-size: 20px;
+    color: var(--accent);
+    font-weight: bold;
+    letter-spacing: -0.03em;
+  }
+  /* Progress bar */
+  #progressBar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--border);
+    z-index: 10;
+    pointer-events: none;
+  }
+  #progressFill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent), var(--accent3));
+    transition: width 0.1s linear;
+  }
+
+  /* ── Game Over Screen ───────────────────────────────────── */
+  #gameOverScreen {
+    background: rgba(10,10,15,0.97);
+    gap: 20px;
+    text-align: center;
+  }
+  #gameOverScreen .go-label {
+    font-size: 10px;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    color: var(--obstacle);
+  }
+  #gameOverScreen h2 {
+    font-size: clamp(28px, 8vw, 52px);
+    font-weight: 400;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+  #gameOverMsg {
+    font-size: clamp(13px, 3.5vw, 17px);
+    color: var(--muted);
+    max-width: 320px;
+    line-height: 1.65;
+    font-style: italic;
+    min-height: 60px;
+    transition: opacity 0.5s;
+  }
+  #attemptCount {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    opacity: 0.6;
+  }
+
+  /* ── Win Screen ─────────────────────────────────────────── */
+  #winScreen {
+    background: rgba(10,10,15,0.98);
+    gap: 24px;
+    text-align: center;
+  }
+  #winScreen .win-label {
+    font-size: 10px;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    color: var(--safe);
+  }
+  #winScreen h2 {
+    font-size: clamp(22px, 6vw, 40px);
+    font-weight: 400;
+    color: var(--text);
+    line-height: 1.3;
+    max-width: 340px;
+  }
+
+  /* ── Final Screen ───────────────────────────────────────── */
+  #finalScreen {
+    background: var(--bg);
+    gap: 28px;
+    text-align: center;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+  #finalScreen .divider {
+    width: 40px; height: 1px;
+    background: var(--accent);
+    opacity: 0.4;
+    margin: 0 auto;
+  }
+  #finalScreen p {
+    font-size: clamp(14px, 3.8vw, 18px);
+    color: var(--text);
+    line-height: 1.8;
+    font-style: italic;
+    opacity: 0.9;
+  }
+  #finalScreen .signature {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    opacity: 0.5;
+  }
+
+  /* ── Particles canvas ───────────────────────────────────── */
+  #particleCanvas {
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 20;
+  }
+
+  /* ── Scanline overlay ───────────────────────────────────── */
+  .scanlines {
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.03) 2px,
+      rgba(0,0,0,0.03) 4px
+    );
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  /* ── Vignette ───────────────────────────────────────────── */
+  .vignette {
+    position: fixed; inset: 0;
+    background: radial-gradient(ellipse at center,
+      transparent 55%,
+      rgba(0,0,0,0.6) 100%);
+    pointer-events: none;
+    z-index: 6;
+  }
+</style>
+</head>
+<body>
+
+<!-- Atmospheric layers -->
+<div class="scanlines"></div>
+<div class="vignette"></div>
+
+<!-- Particle system canvas -->
+<canvas id="particleCanvas"></canvas>
+
+<!-- ── START SCREEN ──────────────────────────────────────── -->
+<div id="startScreen" class="screen">
+  <p class="kicker">a small thing i made</p>
+  <h1>hold <span>on</span></h1>
+  <p class="sub">dodge the echoes.<br>survive a little longer than you think you can.</p>
+  <button class="btn" id="startBtn">begin</button>
+</div>
+
+<!-- ── GAME SCREEN ───────────────────────────────────────── -->
+<div id="gameScreen" class="screen hidden">
+  <canvas id="gameCanvas"></canvas>
+  <div id="hud">
+    <div>
+      <div class="hud-label">time</div>
+      <div class="hud-val" id="hudTime">0.0</div>
+    </div>
+    <div style="text-align:right">
+      <div class="hud-label">tries</div>
+      <div class="hud-val" id="hudAttempts">0</div>
+    </div>
+  </div>
+  <div id="progressBar"><div id="progressFill"></div></div>
+</div>
+
+<!-- ── GAME OVER SCREEN ──────────────────────────────────── -->
+<div id="gameOverScreen" class="screen hidden">
+  <div class="go-label">— again —</div>
+  <h2>you didn't make it</h2>
+  <p id="gameOverMsg">yeah… this isn't easy</p>
+  <p id="attemptCount">attempt 1</p>
+  <button class="btn" id="retryBtn">try again</button>
+</div>
+
+<!-- ── WIN SCREEN ────────────────────────────────────────── -->
+<div id="winScreen" class="screen hidden">
+  <div class="win-label">— you did it —</div>
+  <h2>you weren't supposed to win this…<br>but I'm proud of you</h2>
+  <button class="btn" id="winContinueBtn">keep going</button>
+</div>
+
+<!-- ── FINAL SCREEN ──────────────────────────────────────── -->
+<div id="finalScreen" class="screen hidden">
+  <div class="divider"></div>
+  <p>
+    I messed up. I hurt you and I know that.<br><br>
+    I'm not going to justify it.<br><br>
+    I just want you to know I mean this.<br><br>
+    I know you know I'm not someone who can build something like this.
+    I did take help… but I meant every word here.
+  </p>
+  <div class="divider"></div>
+  <p class="signature">— with everything</p>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  CONFIGURATION — easy to customise
+// ═══════════════════════════════════════════════════════════
+const CONFIG = {
+  WIN_DURATION:  6.5,   // seconds to survive to win
+  OBSTACLE_START_INTERVAL: 1400, // ms between first obstacles
+  OBSTACLE_MIN_INTERVAL:    500, // minimum gap
+  SPEED_START:    3.5,
+  SPEED_MAX:      7.5,
+  PLAYER_SIZE:    18,
+  OBS_WIDTH:      28,
+  OBS_HEIGHT_MIN: 40,
+  OBS_HEIGHT_MAX: 200,
+};
+
+// Emotional messages by attempt range
+const MESSAGES = [
+  { max: 3,  text: "yeah… this isn't easy" },
+  { max: 7,  text: "I should've handled things better too" },
+  { max: 12, text: "I hate that I made things like this" },
+  { max: 15, text: "okay… I won't make you try anymore" },
+];
+
+// ═══════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════
+let attempts   = 0;
+let gameState  = 'start'; // start | playing | dead | won | final
+let animId     = null;
+
+// Game runtime vars
+let startTime, elapsed;
+let playerY, playerVY, playerOnGround;
+let obstacles, gameSpeed, nextObstacleIn, timeSinceLast;
+let particles = [];
+let bgStars = [];
+
+// ═══════════════════════════════════════════════════════════
+//  CANVAS SETUP
+// ═══════════════════════════════════════════════════════════
+const canvas  = document.getElementById('gameCanvas');
+const ctx     = canvas.getContext('2d');
+const pCanvas = document.getElementById('particleCanvas');
+const pCtx    = pCanvas.getContext('2d');
+
+function resize() {
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  pCanvas.width  = window.innerWidth;
+  pCanvas.height = window.innerHeight;
+}
+window.addEventListener('resize', () => { resize(); buildStars(); });
+resize();
+
+// ═══════════════════════════════════════════════════════════
+//  BACKGROUND STARS
+// ═══════════════════════════════════════════════════════════
+function buildStars() {
+  bgStars = [];
+  const n = Math.floor((canvas.width * canvas.height) / 8000);
+  for (let i = 0; i < n; i++) {
+    bgStars.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: Math.random() * 1.2 + 0.2,
+      a: Math.random() * 0.5 + 0.1,
+      speed: Math.random() * 0.3 + 0.05,
+    });
+  }
+}
+buildStars();
+
+// ═══════════════════════════════════════════════════════════
+//  PARTICLE SYSTEM
+// ═══════════════════════════════════════════════════════════
+function spawnParticles(x, y, color, count = 16) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = Math.random() * 5 + 1.5;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 2,
+      life: 1,
+      decay: Math.random() * 0.04 + 0.02,
+      r: Math.random() * 4 + 2,
+      color,
+    });
+  }
+}
+
+function updateParticles() {
+  pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height);
+  particles = particles.filter(p => p.life > 0);
+  for (const p of particles) {
+    p.x  += p.vx;
+    p.y  += p.vy;
+    p.vy += 0.18; // gravity
+    p.vx *= 0.96;
+    p.life -= p.decay;
+    pCtx.save();
+    pCtx.globalAlpha = Math.max(0, p.life);
+    pCtx.beginPath();
+    pCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    pCtx.fillStyle = p.color;
+    pCtx.fill();
+    pCtx.restore();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SOUND (Web Audio API — no external deps)
+// ═══════════════════════════════════════════════════════════
+let audioCtx = null;
+
+function getAudio() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+  }
+  return audioCtx;
+}
+
+function playTone(freq, type, duration, vol = 0.15, delay = 0) {
+  const ac = getAudio();
+  if (!ac) return;
+  try {
+    const osc  = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.connect(gain);
+    gain.connect(ac.destination);
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, ac.currentTime + delay);
+    gain.gain.setValueAtTime(vol, ac.currentTime + delay);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + delay + duration);
+    osc.start(ac.currentTime + delay);
+    osc.stop(ac.currentTime + delay + duration);
+  } catch(e) {}
+}
+
+function sfxJump()   { playTone(300, 'sine',   0.12, 0.12); playTone(440, 'sine', 0.08, 0.08, 0.06); }
+function sfxDie()    { playTone(200, 'sawtooth', 0.3, 0.18); playTone(100, 'sawtooth', 0.4, 0.12, 0.1); }
+function sfxWin()    { [440,550,660,880].forEach((f,i) => playTone(f,'sine',0.3,0.12,i*0.08)); }
+function sfxTick()   { playTone(660, 'sine', 0.04, 0.05); }
+
+// ═══════════════════════════════════════════════════════════
+//  GAME LOGIC
+// ═══════════════════════════════════════════════════════════
+const GROUND = () => canvas.height * 0.78; // ground Y position
+
+function initGame() {
+  playerY        = GROUND() - CONFIG.PLAYER_SIZE;
+  playerVY       = 0;
+  playerOnGround = true;
+  obstacles      = [];
+  gameSpeed      = CONFIG.SPEED_START;
+  nextObstacleIn = CONFIG.OBSTACLE_START_INTERVAL;
+  timeSinceLast  = 0;
+  startTime      = performance.now();
+  elapsed        = 0;
+}
+
+function jump() {
+  if (!playerOnGround) return;
+  playerVY       = -14;
+  playerOnGround = false;
+  sfxJump();
+  // small dust burst
+  spawnParticles(52, GROUND(), '#c8a2ff', 8);
+}
+
+function spawnObstacle() {
+  const h = CONFIG.OBS_HEIGHT_MIN + Math.random() * (CONFIG.OBS_HEIGHT_MAX - CONFIG.OBS_HEIGHT_MIN);
+  obstacles.push({
+    x: canvas.width + CONFIG.OBS_WIDTH,
+    w: CONFIG.OBS_WIDTH + Math.random() * 12,
+    h,
+    y: GROUND() - h,
+    color: Math.random() < 0.5 ? '#ff6b8a' : '#ff9e6b',
+  });
+}
+
+function updateGame(now) {
+  const dt = Math.min(now - (updateGame._last || now), 50);
+  updateGame._last = now;
+
+  elapsed = (now - startTime) / 1000;
+
+  // Progress bar
+  const pct = Math.min(100, (elapsed / CONFIG.WIN_DURATION) * 100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('hudTime').textContent = elapsed.toFixed(1);
+
+  // Ramp speed
+  const t = Math.min(elapsed / CONFIG.WIN_DURATION, 1);
+  gameSpeed = CONFIG.SPEED_START + (CONFIG.SPEED_MAX - CONFIG.SPEED_START) * t;
+
+  // Move stars (parallax)
+  for (const s of bgStars) {
+    s.x -= s.speed * gameSpeed * 0.2;
+    if (s.x < 0) s.x = canvas.width;
+  }
+
+  // Player physics
+  playerVY += 0.65; // gravity
+  playerY  += playerVY;
+  const ground = GROUND() - CONFIG.PLAYER_SIZE;
+  if (playerY >= ground) {
+    playerY        = ground;
+    playerVY       = 0;
+    playerOnGround = true;
+  }
+
+  // Spawn obstacles
+  timeSinceLast += dt;
+  const interval = Math.max(CONFIG.OBSTACLE_MIN_INTERVAL,
+    CONFIG.OBSTACLE_START_INTERVAL - elapsed * 80);
+  if (timeSinceLast >= interval) {
+    spawnObstacle();
+    timeSinceLast = 0;
+  }
+
+  // Move obstacles + collision check
+  const px = 50, py = playerY;
+  const ps = CONFIG.PLAYER_SIZE;
+  for (let i = obstacles.length - 1; i >= 0; i--) {
+    obstacles[i].x -= gameSpeed;
+    if (obstacles[i].x + obstacles[i].w < 0) { obstacles.splice(i,1); continue; }
+
+    // AABB collision (with slight forgiveness)
+    const o   = obstacles[i];
+    const pad = 4;
+    if (
+      px + ps - pad > o.x + pad &&
+      px + pad      < o.x + o.w - pad &&
+      py + ps - pad > o.y + pad &&
+      py + pad      < o.y + o.h - pad
+    ) {
+      // HIT
+      spawnParticles(px, py, '#ff6b8a', 24);
+      sfxDie();
+      return 'dead';
+    }
+  }
+
+  // Win check
+  if (elapsed >= CONFIG.WIN_DURATION) return 'won';
+
+  return 'playing';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  DRAW
+// ═══════════════════════════════════════════════════════════
+function drawScene() {
+  const W = canvas.width, H = canvas.height;
+  const ground = GROUND();
+
+  // Clear
+  ctx.clearRect(0, 0, W, H);
+
+  // Background
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#0a0a0f');
+  grad.addColorStop(1, '#0f0a18');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Stars
+  for (const s of bgStars) {
+    ctx.save();
+    ctx.globalAlpha = s.a;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Ground line with glow
+  ctx.save();
+  ctx.shadowColor = '#c8a2ff';
+  ctx.shadowBlur = 10;
+  ctx.strokeStyle = '#2a1f3d';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, ground);
+  ctx.lineTo(W, ground);
+  ctx.stroke();
+  ctx.restore();
+
+  // Ground fill (subtle)
+  const gFill = ctx.createLinearGradient(0, ground, 0, H);
+  gFill.addColorStop(0, 'rgba(40,20,60,0.3)');
+  gFill.addColorStop(1, 'rgba(10,10,15,0.1)');
+  ctx.fillStyle = gFill;
+  ctx.fillRect(0, ground, W, H - ground);
+
+  // Obstacles
+  for (const o of obstacles) {
+    ctx.save();
+    // Glow
+    ctx.shadowColor = o.color;
+    ctx.shadowBlur = 12;
+    // Body
+    const og = ctx.createLinearGradient(o.x, o.y, o.x + o.w, o.y + o.h);
+    og.addColorStop(0, o.color);
+    og.addColorStop(1, '#7a2040');
+    ctx.fillStyle = og;
+    ctx.beginPath();
+    ctx.roundRect(o.x, o.y, o.w, o.h, 3);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Player
+  const px = 50, py = playerY, ps = CONFIG.PLAYER_SIZE;
+  ctx.save();
+  ctx.shadowColor = '#c8a2ff';
+  ctx.shadowBlur = 18;
+
+  // Player glow pulse
+  const pulse = 0.7 + 0.3 * Math.sin(performance.now() * 0.006);
+  ctx.globalAlpha = pulse;
+  ctx.beginPath();
+  ctx.arc(px + ps / 2, py + ps / 2, ps * 0.9, 0, Math.PI * 2);
+  ctx.fillStyle = '#1a0a2e';
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  // Player body
+  ctx.beginPath();
+  ctx.roundRect(px, py, ps, ps, 5);
+  const pg = ctx.createLinearGradient(px, py, px + ps, py + ps);
+  pg.addColorStop(0, '#d4b0ff');
+  pg.addColorStop(1, '#8040d0');
+  ctx.fillStyle = pg;
+  ctx.fill();
+  ctx.restore();
+
+  // Player trail
+  ctx.save();
+  ctx.globalAlpha = 0.15;
+  for (let i = 1; i <= 4; i++) {
+    ctx.beginPath();
+    ctx.roundRect(px - i * 7, py + i * 0.5, ps - i * 1.5, ps - i * 1.5, 3);
+    ctx.fillStyle = '#c8a2ff';
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  MAIN LOOP
+// ═══════════════════════════════════════════════════════════
+function loop(now) {
+  if (gameState !== 'playing') return;
+  const result = updateGame(now);
+  drawScene();
+  updateParticles();
+
+  if (result === 'dead') {
+    gameState = 'dead';
+    attempts++;
+    showGameOver();
+    return;
+  }
+  if (result === 'won') {
+    gameState = 'won';
+    sfxWin();
+    spawnParticles(canvas.width / 2, canvas.height / 2, '#80ffdb', 40);
+    showWin();
+    return;
+  }
+
+  animId = requestAnimationFrame(loop);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SCREEN TRANSITIONS
+// ═══════════════════════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+}
+
+function showGameOver() {
+  // Find message based on attempt count
+  let msg = MESSAGES[MESSAGES.length - 1].text;
+  for (const m of MESSAGES) {
+    if (attempts <= m.max) { msg = m.text; break; }
+  }
+  document.getElementById('gameOverMsg').textContent = `"${msg}"`;
+  document.getElementById('attemptCount').textContent = `attempt ${attempts}`;
+  document.getElementById('hudAttempts').textContent = attempts;
+
+  // After 15 losses, show final screen instead
+  if (attempts > 15) {
+    setTimeout(() => { gameState = 'final'; showScreen('finalScreen'); }, 1200);
+    return;
+  }
+  showScreen('gameOverScreen');
+}
+
+function showWin() {
+  setTimeout(() => showScreen('winScreen'), 600);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  INPUT HANDLING (keyboard + touch)
+// ═══════════════════════════════════════════════════════════
+function handleJump() {
+  if (gameState === 'playing') jump();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+    e.preventDefault();
+    handleJump();
+  }
+});
+
+document.addEventListener('touchstart', e => {
+  e.preventDefault();
+  handleJump();
+}, { passive: false });
+
+// ═══════════════════════════════════════════════════════════
+//  BUTTON HANDLERS
+// ═══════════════════════════════════════════════════════════
+document.getElementById('startBtn').addEventListener('click', () => {
+  sfxTick();
+  initGame();
+  gameState = 'playing';
+  showScreen('gameScreen');
+  animId = requestAnimationFrame(loop);
+});
+
+document.getElementById('retryBtn').addEventListener('click', () => {
+  sfxTick();
+  initGame();
+  gameState = 'playing';
+  showScreen('gameScreen');
+  animId = requestAnimationFrame(loop);
+});
+
+document.getElementById('winContinueBtn').addEventListener('click', () => {
+  sfxTick();
+  showScreen('finalScreen');
+});
+
+// ═══════════════════════════════════════════════════════════
+//  IDLE PARTICLE LOOP (for non-game screens)
+// ═══════════════════════════════════════════════════════════
+function idleLoop() {
+  if (gameState !== 'playing') updateParticles();
+  requestAnimationFrame(idleLoop);
+}
+idleLoop();
+
+// ═══════════════════════════════════════════════════════════
+//  INITIAL STAR RENDER (start screen atmosphere)
+// ═══════════════════════════════════════════════════════════
+(function drawStartBg() {
+  if (gameState === 'start') {
+    const W = pCanvas.width, H = pCanvas.height;
+    pCtx.clearRect(0, 0, W, H);
+    for (const s of bgStars) {
+      pCtx.save();
+      pCtx.globalAlpha = s.a * 0.5;
+      pCtx.beginPath();
+      pCtx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      pCtx.fillStyle = '#c8a2ff';
+      pCtx.fill();
+      pCtx.restore();
+      s.x -= s.speed * 0.4;
+      if (s.x < 0) s.x = W;
+    }
+    requestAnimationFrame(drawStartBg);
+  }
+})();
+</script>
+</body>
+</html>
