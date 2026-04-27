@@ -753,6 +753,11 @@ document.addEventListener('touchstart', e => {
   handleJump();
 }, { passive: false });
 
+document.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  handleJump();
+});
+
 // ═══════════════════════════════════════════════════════════
 //  BUTTON HANDLERS
 // ═══════════════════════════════════════════════════════════
