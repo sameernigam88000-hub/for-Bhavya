@@ -372,15 +372,28 @@ const ctx     = canvas.getContext('2d');
 const pCanvas = document.getElementById('particleCanvas');
 const pCtx    = pCanvas.getContext('2d');
 
-function resize() {
-  canvas.width  = window.innerWidth;
-  canvas.height = window.innerHeight;
-  pCanvas.width  = window.innerWidth;
-  pCanvas.height = window.innerHeight;
+// 🔥 FORCE TOUCH TO WORK ON CANVAS
+function triggerJump() {
+  if (gameState === 'playing') jump();
 }
-window.addEventListener('resize', () => { resize(); buildStars(); });
-resize();
 
+// touch (mobile)
+canvas.addEventListener('touchstart', function(e) {
+  e.preventDefault();
+  triggerJump();
+}, { passive: false });
+
+// pointer (Android WebView fix)
+canvas.addEventListener('pointerdown', function(e) {
+  e.preventDefault();
+  triggerJump();
+});
+
+// click fallback
+canvas.addEventListener('click', function() {
+  triggerJump();
+});
+  
 // ═══════════════════════════════════════════════════════════
 //  BACKGROUND STARS
 // ═══════════════════════════════════════════════════════════
@@ -761,26 +774,6 @@ document.addEventListener('keydown', e => {
     triggerJump();
   }
 });
-
-// touch (mobile)
-document.addEventListener('touchstart', e => {
-  e.preventDefault();
-  triggerJump();
-}, { passive: false });
-
-// pointer (IMPORTANT for WebView)
-document.addEventListener('pointerdown', e => {
-  e.preventDefault();
-  triggerJump();
-});
-
-// click fallback
-document.addEventListener('click', e => {
-  triggerJump();
-});
-
-// fallback (extra safety)
-document.body.onclick = () => handleJump();
 
 // ═══════════════════════════════════════════════════════════
 //  BUTTON HANDLERS
